@@ -105,6 +105,8 @@ try {
   for (let i = 0; i < FIRST_RUN_TRIES && !existsSync(join(work, 'config', 'config.jsonc')); i++) await new Promise(resolve => setTimeout(resolve, FIRST_RUN_POLL_MS));
   check(['config.example.jsonc', 'config.jsonc', 'custom.example.css', 'custom.css'].every(f => existsSync(join(work, 'config', f))), 'the first run creates the example and working config and style files in the empty config folder');
   const mine = '{ "plugins": [ { "id": "folder", "settings": { "minAgeSeconds": 0 } } ] }\n';
+  // The container (uid 1000) owns the created file; on Linux hosts (CI runs as another uid) it cannot be overwritten, but the world-writable folder lets it be replaced.
+  rmSync(join(work, 'config', 'config.jsonc'));
   writeFileSync(join(work, 'config', 'config.jsonc'), mine);
   check(docker(['restart', '-t', String(RESTART_GRACE_SECONDS), name]).ok, 'the container restarts');
   await new Promise(resolve => setTimeout(resolve, RESTART_SETTLE_MS));
