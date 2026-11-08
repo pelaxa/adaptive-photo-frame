@@ -5,7 +5,7 @@
   "description": "Adaptive Photo Frame plugin: photos from an Immich shared album",
   "type": "module",
   "dependencies": {
-    "@immich/sdk": "^3.3.5"
+    "@immich/sdk": "^3.3.6"
   },
   "license": "AGPL-3.0-or-later"
 }
