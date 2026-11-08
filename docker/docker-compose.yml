@@ -1,0 +1,48 @@
+# Adaptive Photo Frame - example Docker Compose file.
+# Copy config/config.example.jsonc to config/config.jsonc and edit it first, then (from this folder):   docker compose up -d
+# Logs go to the console only:   docker compose logs -f
+#
+# The app runs as an unprivileged user (uid 1000), never as root.
+services:
+  photo-frame:
+    image: adaptive-photo-frame:latest      # build it with: npm run docker:build
+    # build: {context: .., dockerfile: docker/Dockerfile}                            # ...or let Compose build it
+    container_name: adaptive-photo-frame
+    restart: unless-stopped
+    ports:
+      - "3000:3000"                         # host:container. The container port must match server.port in config.jsonc.
+    volumes:
+      # SETTINGS: a host folder. On the first start it is filled with config.example.jsonc and config.jsonc (files that already exist are
+      # never touched), so it must be writable by uid 1000 (chown 1000:1000 config). It holds the Immich share key: keep it private.
+      - ../config:/app/config
+
+      # YOUR OWN PLUGINS: a host folder, empty at first (the built-in plugins ship inside the image). Add a plugin folder here, then run
+      # `docker exec -it adaptive-photo-frame sh` and `npm install --ignore-scripts` inside it. The folder must be writable by uid 1000.
+      - ../plugins:/app/plugins
+
+      # PHOTOS for the built-in folder plugin: any host folder, mounted read-only at the plugin's photos folder.
+      # (The plugin cannot follow symbolic links, so mount the real folder.)
+      - ../builtin-plugins/folder/photos:/app/builtin-plugins/folder/photos:ro
+
+      # Resized-image cache. Optional (can be lost), but a volume keeps images from being downloaded and resized again after an upgrade.
+      - cache:/app/.cache
+
+    # user: "1000:1000"                     # change to your own uid:gid if the host folders above are owned by someone else
+    # The app writes no log files; its output goes to the console. Docker itself keeps that output on the host, so cap its size:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # --- hardening (all optional, all tested to work) ---
+    read_only: true                         # the root filesystem is read-only; config, plugins and cache are the mounts above
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  cache:

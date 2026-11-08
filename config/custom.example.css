@@ -1,0 +1,63 @@
+/*
+ * Adaptive Photo Frame - custom styles. Copy this file to "custom.css" (in this same folder) and edit it.
+ *
+ * The page loads custom.css AFTER its own styles, so a rule here wins. Reload the page to see a change (no restart needed).
+ * In Docker the first start creates custom.css in the mapped config folder. A file that already exists is never overwritten.
+ *
+ * Everything below is commented out. Remove the /* and the closing star-slash around a block to switch it on.
+ * The class names below are the ones meant for overriding; the page's other classes are internal and may change between versions:
+ *   .gallery (the whole wall)   .row   .column   .frame (a photo and its border)   .message (text such as "no photos")   .qrcode
+ * This file is public: anyone who can open the page can read it, so keep secrets out of it.
+ */
+
+/*
+ * Grey borders between the photos on some TVs / Android WebViews (for example Fully Kiosk Browser on an Android TV stick):
+ * the black frame border is drawn paler than it should be. Letting the frame's background show through a transparent border
+ * gives the exact colour, and looks the same everywhere else.
+ *
+.frame {
+  border-color: transparent;
+  background: #000;
+}
+*/
+
+/*
+ * Thinner or thicker gaps between photos. The visible gap is the gallery padding plus the frame border (3px + 3px by default).
+ *
+.gallery { padding: 2px; }
+.frame { border-width: 2px; }
+*/
+
+/*
+ * The clock (settings such as its corner and formats are in config.jsonc; this is only its look). Defaults: white on 50% black.
+ *
+.clock {
+  background: rgba(20, 40, 90, .7);
+  color: #ffd966;
+  font-family: Georgia, serif;
+}
+.clock-date { font-size: 2.5vh; }
+.clock-time { font-size: 6vh; }
+*/
+
+/*
+ * The QR code box (its corner and caption are qr.position and qr.text in config.jsonc). Defaults: white squares and caption on a
+ * frosted-glass panel. "color" paints both the squares and the caption; keep strong contrast with the background, or phones cannot scan it.
+ *
+.qrcode {
+  color: #000;
+  background: #fff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.qrcode p { font-size: 1vh; }
+*/
+
+/*
+ * Rounded corner and QR code size, shared by the clock and the QR code (when both are in the same corner, the clock sits next to the QR code).
+ *
+:root {
+  --box-radius: 14px;
+  --qr-size: 14vh;
+}
+*/

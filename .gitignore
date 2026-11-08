@@ -1,0 +1,11 @@
+node_modules
+.env
+config/config.jsonc
+config/custom.css
+.cache
+.codegraph
+builtin-plugins/folder/photos/*
+!builtin-plugins/folder/photos/.gitkeep
+
+# personal Claude Code settings (shared files in .claude/ are committed)
+.claude/settings.local.json

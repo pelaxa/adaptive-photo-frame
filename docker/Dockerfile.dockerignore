@@ -1,0 +1,31 @@
+# Nothing private or machine-specific goes into the image.
+.git
+.github
+.gitignore
+.claude
+.codegraph
+.DS_Store
+.cache
+.env
+
+# Settings and secrets are mounted at run time, never baked in.
+config/config.jsonc
+config/custom.css
+
+# Packages are installed inside the image (the host's would be for the wrong operating system).
+**/node_modules
+
+# The user's photos are mounted at run time. Keep only the empty folder.
+builtin-plugins/folder/photos/*
+!builtin-plugins/folder/photos/.gitkeep
+
+# macOS clutter
+**/.DS_Store
+
+# Not needed to run.
+test
+*.log
+
+# User plugins are mapped at run time; the image ships an empty plugins folder.
+plugins/*
+!plugins/.gitkeep

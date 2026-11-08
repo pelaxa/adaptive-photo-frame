@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!--
+  index.html - the only page. It is an empty shell: app.js builds the photo rows inside
+  .gallery, .message shows "no photos" text, .clock shows the date and time, and .qrcode links guests to the upload page.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Event Photos</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="custom.css"> <!-- the user's optional overrides (config/custom.css); empty if there is none -->
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div class="gallery"></div>
+  <div class="message" hidden></div>
+  <div class="clock" hidden>
+    <div class="clock-date"></div>
+    <div class="clock-time"></div>
+  </div>
+  <div class="qrcode" hidden>
+    <p></p>
+    <div class="qr-image" role="img" aria-label="QR code to upload photos"></div> <!-- /api/qr.svg, drawn as a mask in style.css so its colour can be set from CSS -->
+  </div>
+</body>
+</html>

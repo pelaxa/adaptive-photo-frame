@@ -1,0 +1,30 @@
+# Weekly pull requests that update dependencies, so security fixes do not wait for someone to notice.
+version: 2
+updates:
+  # The app's own packages.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  # Each plugin has its own packages (and its own lock file).
+  - package-ecosystem: npm
+    directory: /builtin-plugins/folder
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /builtin-plugins/immich-sharedAlbum
+    schedule:
+      interval: weekly
+
+  # The actions used by the workflows are pinned to exact commits; this keeps those commits current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

@@ -1,0 +1,11 @@
+{
+  "name": "immich-shared-album-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Adaptive Photo Frame plugin: photos from an Immich shared album",
+  "type": "module",
+  "dependencies": {
+    "@immich/sdk": "^3.3.5"
+  },
+  "license": "AGPL-3.0-or-later"
+}

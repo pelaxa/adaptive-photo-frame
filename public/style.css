@@ -1,0 +1,183 @@
+/*
+ * style.css - styles for the photo wall.
+ *
+ * Structure (built by app.js):
+ *   .gallery            full screen, holds two .row strips
+ *     .row              one strip, half the screen height; columns are positioned
+ *                       inside it with pixel left/width values set from JavaScript
+ *       .column         one or two stacked photos
+ *         .frame > img  a photo, cropped (object-fit: cover) only by a few percent
+ *
+ * Gaps between photos come from black borders on the frames, so no extra spacing
+ * maths is needed in JavaScript.
+ */
+
+/* Sizes shared by the corner boxes (clock and QR code). Override them in custom.css, for example `:root { --qr-size: 14vh; }`. */
+:root {
+  --qr-size: 10vh;
+  --box-radius: 5px; /* the one rounded corner of a corner box */
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+.gallery {
+  height: 100%;
+  box-sizing: border-box;
+  padding: 3px; /* plus the 3px frame border = 6px visible gap everywhere */
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  position: relative;
+  flex: 1;
+  overflow: hidden; /* columns slide in from, and out to, outside the row */
+  perspective: 1500px; /* gives the fold animations their 3D depth */
+}
+
+.column {
+  position: absolute; /* left and width are set from JavaScript */
+  top: 0;
+  height: 100%;
+  z-index: 2; /* app.js lowers it for a leaving column and raises it for an arriving one */
+  transform-style: preserve-3d; /* lets accordion strips inside share the row's perspective */
+}
+
+.frame {
+  box-sizing: border-box;
+  width: 100%; /* height is a percentage set from JavaScript */
+  border: 3px solid #000;
+  overflow: hidden;
+  background: #111;
+}
+
+.frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.message {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font: 3vh sans-serif;
+}
+
+.qrcode {
+  position: absolute; /* the corner is chosen by [data-position] below */
+  width: var(--qr-size);
+  height: var(--qr-size);
+  box-sizing: border-box;
+  padding: 5px;
+  /* The look. Defaults: white squares and caption on a frosted-glass panel over the photos. custom.css changes any of it, for example
+     `.qrcode { color: #000; background: #fff; backdrop-filter: none; }`. Keep strong contrast between color and background, or phones cannot scan it. */
+  color: var(--qr-color, #fff); /* the squares and the caption */
+  background: var(--qr-background, rgba(0, 0, 0, .35));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10; /* stay above sliding columns */
+}
+
+/* The box touches two screen edges; only the corner facing the screen centre is rounded */
+.qrcode[data-position="bottom-left"] { left: 0; bottom: 0; border-top-right-radius: var(--box-radius); }
+.qrcode[data-position="bottom-right"] { right: 0; bottom: 0; border-top-left-radius: var(--box-radius); }
+.qrcode[data-position="top-left"] { left: 0; top: 0; border-bottom-right-radius: var(--box-radius); }
+.qrcode[data-position="top-right"] { right: 0; top: 0; border-bottom-left-radius: var(--box-radius); }
+
+/* the hidden attribute alone loses to display: flex above */
+.qrcode[hidden] { display: none; }
+
+.qrcode p[hidden] { display: none; }
+
+.qrcode p {
+  margin: 0 0 5px;
+  font: bold .75vh arial, sans-serif;
+  text-align: center;
+}
+
+/* The squares: the server's SVG (black on transparent) is used as a mask over a block painted in the box's text colour. */
+.qr-image {
+  width: 75%;
+  aspect-ratio: 1;
+  background-color: currentColor;
+  -webkit-mask: url("/api/qr.svg") center / contain no-repeat;
+  mask: url("/api/qr.svg") center / contain no-repeat;
+}
+
+/* The clock: date and time in a corner box, like the QR code. Its colours and fonts are plain properties, so custom.css can change them. */
+.clock {
+  position: absolute; /* the corner is chosen by [data-position] below */
+  box-sizing: border-box;
+  padding: 1vh 2vh;
+  background: var(--clock-background, rgba(0, 0, 0, .5));
+  color: var(--clock-color, #fff);
+  font-family: sans-serif;
+  line-height: 1.25;
+  text-align: center;
+  white-space: nowrap;
+  z-index: 10; /* stay above sliding columns */
+}
+
+.clock[hidden] { display: none; }
+
+.clock-date { font-size: 2vh; }
+
+.clock-time {
+  font-size: 4vh;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums; /* equal-width digits, so the box does not jiggle every second */
+}
+
+/* Same rule as the QR code: the box touches two screen edges; only the corner facing the screen centre is rounded */
+.clock[data-position="bottom-left"] { left: 0; bottom: 0; border-top-right-radius: var(--box-radius); }
+.clock[data-position="bottom-right"] { right: 0; bottom: 0; border-top-left-radius: var(--box-radius); }
+.clock[data-position="top-left"] { left: 0; top: 0; border-bottom-right-radius: var(--box-radius); }
+.clock[data-position="top-right"] { right: 0; top: 0; border-bottom-left-radius: var(--box-radius); }
+
+/* Clock and QR code in the same corner: the clock moves up to sit beside the QR code, rounded at both corners away from the screen edge */
+.clock.beside-qr[data-position^="top"] { top: var(--qr-size); }
+.clock.beside-qr[data-position^="bottom"] { bottom: var(--qr-size); }
+.clock.beside-qr[data-position$="left"] { border-radius: 0 var(--box-radius) var(--box-radius) 0; }
+.clock.beside-qr[data-position$="right"] { border-radius: var(--box-radius) 0 0 var(--box-radius); }
+
+/* Burn-in protection (display.burnInProtection): app.js adds .moving to fade a corner box out, moves it, and removes .moving to fade it back in.
+   The fade is 1 second; keep it in step with BURN_IN_FADE_MS in app.js. */
+.clock, .qrcode { transition: opacity 1s; }
+.clock.moving, .qrcode.moving { opacity: 0; }
+
+/* Accordion folds: the real pictures are hidden while hinged strips (copies of them) animate. */
+.column.folding > .frame { visibility: hidden; }
+
+.accordion {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.strip {
+  position: absolute; /* size and hinge edge are set from JavaScript */
+  transform-style: preserve-3d;
+}
+
+.strip > .clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden; /* each strip shows only its slice of the column copy */
+}
+
+.strip > .clip > .column {
+  position: absolute; /* the copy keeps the column's frames; its own box is sized from JavaScript */
+}

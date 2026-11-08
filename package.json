@@ -1,0 +1,26 @@
+{
+  "name": "adaptive-photo-frame",
+  "version": "1.0.0",
+  "description": "A node application to display rotating pictures in a client browser ",
+  "main": "server.js",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check": "node scripts/pluginTool.js check",
+    "setup": "node scripts/pluginTool.js setup",
+    "install-plugins": "node scripts/installPlugins.js",
+    "docker:build": "node docker/dockerBuild.js",
+    "docker:build:multi": "node docker/dockerBuild.js --multi",
+    "docker:test": "node docker/dockerSmokeTest.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "dependencies": {
+    "jsonc-parser": "^3.3.1",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.35.5"
+  }
+}

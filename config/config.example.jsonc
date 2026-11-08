@@ -1,0 +1,186 @@
+// Adaptive Photo Frame settings. Copy this file to "config.jsonc" (in this same folder) and edit it.
+// This is JSON with comments: everything after // on a line is ignored, and trailing commas are fine.
+// After changing anything, restart the server (Ctrl+C, then `npm start`).
+// Page styles can be overridden in custom.css, in this same folder (see custom.example.css).
+{
+  // ---------------------------------------------------------------------------
+  // Server
+  // ---------------------------------------------------------------------------
+  "server": {
+    // Network address to listen on. "0.0.0.0" = reachable from other devices on the same network;
+    // "127.0.0.1" = this computer only.
+    "host": "0.0.0.0",
+
+    // Port the page is served on: open http://<this-computer>:<port> in a browser. (1-65535)
+    "port": 3000,
+
+    // Longest any plugin call (starting, listing photos, fetching a photo) may take before it counts
+    // as failed. Applies to every plugin. (1-300)
+    "pluginTimeoutSeconds": 15,
+
+    // If the plugin cannot start (e.g. the network is not up yet, a USB drive is not mounted),
+    // try again after this many seconds. The page shows "Starting..." meanwhile. (1-3600)
+    "startupRetrySeconds": 10,
+
+    // How much is logged: "error", "warn", "info" or "debug". Plugin lines are prefixed with the plugin's name.
+    "logLevel": "info"
+  },
+
+  // ---------------------------------------------------------------------------
+  // Display
+  // ---------------------------------------------------------------------------
+  "display": {
+    // Seconds between photo changes: every this many seconds one frame is replaced. (1-3600)
+    "tileSeconds": 10,
+
+    // Seconds between re-reading the photo source for new or deleted photos. Photos added to the
+    // source appear within about this time (plus up to 30 seconds of caching). (5-86400)
+    "refreshSeconds": 60,
+
+    // Fewest photos on screen at once, across both rows. Stacked pairs of small photos are used to
+    // reach it, so a higher number means more (smaller) frames. Cannot exceed maxPhotos. (1-40)
+    "minPhotos": 8,
+
+    // Most photos on screen at once, across both rows. Lower = bigger, calmer photos. (2-40)
+    "maxPhotos": 12,
+
+    // Chance that a row change turns one row into a single panorama photo across its whole width (when the
+    // album has a photo wide enough: roughly 2.9:1 or wider on a 16:9 screen). While a panorama is showing, the
+    // wall holds fewer photos than minPhotos; that is the one exception to the minimum. 0 = never. (0-1)
+    "panoramaChance": 0.2,
+
+    // How often a new frame is a stack of two small photos instead of one large photo:
+    // 0 = never, 1 = always, 0.3 = about 3 in 10. Portraits are never stacked. (0-1)
+    "stackChance": 0.4,
+
+    // Hardware this will run on. Decides how much animation is used, and how big the photos are.
+    //   "high-power" = a computer or recent tablet: every animation (slides, page flips, accordion folds), and the
+    //                  neighbouring frames glide smoothly while a frame is replaced. Photos up to 1440 pixels.
+    //   "standard"   = most TVs, TV sticks and Raspberry Pis: slides only, no 3D effects, and cheaper movement for
+    //                  the neighbouring frames. Photos up to 1080 pixels.
+    //   "low-power"  = the weakest devices (or anything that still stutters): NO animation at all. A frame is
+    //                  simply replaced by the new one. Photos up to 1080 pixels.
+    "hardware": "standard",
+
+    // Burn-in protection, for OLED screens. When true, the clock and the QR code move to a different
+    // corner every hour (always a corner they were not in, and never both in the same corner). They
+    // fade out, move and fade back in. The corners set under "clock" and "qr" are where they start.
+    // false = they stay where they are. (This does not change how often they move: it is fixed.)
+    "burnInProtection": false,
+
+    // How long each slide/fold takes, in seconds. Not used when hardware is "low-power". (0.2-5)
+    "animationSeconds": 1,
+
+    // How many folds an accordion animation has. More = a finer concertina but more work.
+    // Only used when hardware is "high-power". (2-8)
+    "accordionStrips": 4
+  },
+
+  // ---------------------------------------------------------------------------
+  // QR code. It only appears if the active plugin provides an upload address
+  // (Immich does; the folder plugin does not). Its colours and the frosted-glass blur are styles: change them in
+  // custom.css (see custom.example.css), not here.
+  // ---------------------------------------------------------------------------
+  "qr": {
+    // Show the QR code at all? true / false.
+    "enabled": true,
+
+    // Corner: "bottom-left", "bottom-right", "top-left" or "top-right". It touches the two screen
+    // edges of that corner; only the corner facing the middle of the screen is rounded.
+    "position": "bottom-left",
+
+    // Caption above the QR code. Use "" for none. Cut off after 60 characters.
+    "text": "Scan to upload"
+  },
+
+  // ---------------------------------------------------------------------------
+  // Clock: the date and time of the device that shows the page, in a box in one corner.
+  // Colours and fonts are not set here: change them in custom.css (see custom.example.css).
+  // ---------------------------------------------------------------------------
+  "clock": {
+    // Show the clock at all? true / false.
+    "enabled": true,
+
+    // Corner: "top-left", "top-right", "bottom-left" or "bottom-right". The box touches the two screen
+    // edges of that corner; only the corner facing the middle of the screen is rounded. If the QR code
+    // is in the same corner, the clock sits next to it.
+    "position": "top-left",
+
+    // Show the date? Show the time? At least one must be true while the clock is enabled.
+    "showDate": true,
+    "showTime": true,
+
+    // Date style: "full" (Saturday, November 7, 2026), "long" (November 7, 2026), "medium" (Nov 7, 2026),
+    // "short" (11/7/26) or "iso" (2026-11-07). Except for "iso", the words and the order follow "locale".
+    "dateFormat": "full",
+
+    // Clock style: "auto" (the usual one for the locale), "12h" (9:05 PM) or "24h" (21:05).
+    "timeFormat": "auto",
+
+    // Include seconds in the time?
+    "showSeconds": false,
+
+    // Language and region for the date and time, such as "en-US", "de-DE" or "fr". "" = the browser's own.
+    "locale": ""
+  },
+
+  // ---------------------------------------------------------------------------
+  // Plugins: where the photos come from.
+  // Only ONE plugin is used: the FIRST entry with "enabled": true. Entries after it are ignored,
+  // so several set-ups can be kept here and switched by changing which one is first or enabled.
+  // "id" is the plugin's folder (or file) name inside plugins/, written exactly: plugins/<id>/index.js or plugins/<id>.js.
+  // Every plugin ALWAYS runs in a FILE-ACCESS SANDBOX: it can read only its own folder, write nothing and run
+  // no programs, but it has full network access. It needs its own packages: run `npm run install-plugins`
+  // after installing. (There is no setting to turn the sandbox off.)
+  // WARNING: plugins from other people are code. The sandbox limits files, not the network. See the README.
+  // ---------------------------------------------------------------------------
+  "plugins": [
+    {
+      "id": "immich-sharedAlbum", // Photos from an Immich shared album (read through its shared link)
+      "enabled": true,
+      "settings": {
+        // Address of the Immich server, no trailing slash and no /api.
+        "url": "https://immich.example.com",
+
+        // The album: the last part of the album's address in Immich (.../albums/<this-part>).
+        "albumId": "your-album-uuid",
+
+        // The key from the album's shared link: the part after /share/. Keep this file private.
+        "shareKey": "your-shared-link-key",
+
+        // How the photos are ordered. "by" is "random" (the default) or an EXIF field (any capitalisation), e.g.
+        // "dateTimeOriginal" (Immich's capture date). Others: city, country, iso, fNumber, focalLength, make, model,
+        // lensModel, modifyDate, rating ... (the list is in the README). A name Immich does not keep is logged as a
+        // warning and gives random. "sort" is "desc" (newest / largest first, the default) or "asc" (oldest / smallest
+        // first); photos without a value come last either way. With "desc" on a date, the newest photos come first in every round.
+        "order": { "by": "DateTimeOriginal", "sort": "desc" }
+      }
+    },
+    {
+      "id": "folder",           // Photos from a folder on this computer (files can be added in any way)
+      "enabled": false,
+      "settings": {
+        // Folder of photos (.jpg, .jpeg, .png, .webp), relative to the plugin's own folder: "photos" means
+        // builtin-plugins/folder/photos. Copy photos in; absolute paths and symbolic links are not allowed, because the
+        // sandboxed plugin can read only its own folder.
+        "path": "photos",
+
+        // Also include photos in sub-folders? true / false.
+        "recursive": true,
+
+        // Window title. Leave out to use the folder's name.
+        "title": "Family photos",
+
+        // How the photos are ordered. "by" is "random" or an EXIF field (any capitalisation); the default,
+        // "DateTimeOriginal", is the date taken, and a photo without one is placed by its file time. Others: CreateDate,
+        // ISO, FNumber, FocalLength, Make, Model, LensModel ... A name that is not an EXIF field is logged as a warning and
+        // gives random. "sort" is "desc" (newest / largest first, the default) or "asc" (oldest / smallest first).
+        "order": { "by": "DateTimeOriginal", "sort": "asc" },
+
+        // Ignore files changed within this many seconds, so a photo still being copied in is not
+        // read half-finished. (0-3600)
+        "minAgeSeconds": 10
+      }
+    }
+  ]
+}
