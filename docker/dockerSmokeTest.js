@@ -127,7 +127,8 @@ try {
   const photo = list.images[0] ? await fetch(`${base}/api/image/${encodeURIComponent(list.images[0].id)}`) : null;
   check(photo?.status === 200 && photo.headers.get('content-type') === 'image/jpeg', 'a photo is served, checked and resized');
   check((await fetch(`${base}/`).catch(() => null))?.status === 200, 'the page loads');
-  writeFileSync(join(work, 'config', 'custom.css'), '.frame { border-color: transparent; }');
+  rmSync(join(work, 'config', 'custom.css')); // container-owned, same as config.jsonc above
+  writeFileSync(join(work, 'config', 'custom.css'),'.frame { border-color: transparent; }');
   const css = await fetch(`${base}/custom.css`).catch(() => null);
   check(css?.status === 200 && css.headers.get('content-type') === 'text/css' && (await css.text()).includes('transparent'), 'custom.css from the config folder is served (and picked up without a restart)');
   const health = docker(['exec', name, 'node', '/app/docker/healthcheck.js']);
