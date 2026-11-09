@@ -123,13 +123,14 @@ always in the image (`docker run --rm --entrypoint cat adaptive-photo-frame /app
 The default `config.jsonc` uses the `folder` plugin; mount photos as above, or change the plugin entry.
 
 **Adding a plugin.** The image has a shell and npm for this. Put the plugin's folder in the host `plugins` folder, then install its packages inside the
-container:
+container (`photo-frame` is the container's name; use the name from `docker ps`):
 ```
-docker exec -it photo-frame sh
-cd /app/plugins/<plugin-folder> && npm install --omit=dev --ignore-scripts
+docker exec -it photo-frame sh -c "cd /app/plugins/<plugin-folder> && npm install --omit=dev --ignore-scripts"
 ```
-and add it to `plugins` in `config.jsonc`. Install scripts stay switched off on purpose: a plugin's dependencies must not run code during installation,
-outside the sandbox. A plugin id must be unique across `builtin-plugins` and `plugins` (the same id in both is an error, so a user plugin cannot
+Then add the plugin to `plugins` in `config.jsonc` and restart the container (`docker restart photo-frame`) so that it loads. The installed `node_modules` live in the
+mapped `plugins` folder, so they survive restarts and upgrades. Install scripts stay switched off on purpose: a plugin's dependencies must not run code during installation,
+outside the sandbox. Running `npm install --omit=dev --ignore-scripts` in the plugin's folder on the host also works for plugins that need only plain JavaScript packages; packages with
+compiled parts or per-platform variants would be built for the host, not the container (Alpine Linux), and would not load, so installing inside the container is the safe way. A plugin id must be unique across `builtin-plugins` and `plugins` (the same id in both is an error, so a user plugin cannot
 silently replace a built-in one: give a modified copy a new id).
 
 **Permissions: the container does not run as root.** It runs as user id **1000**. Program files are owned by root and read-only to it; only
@@ -451,7 +452,7 @@ What the sandbox does **not** do:
 
 Other rules:
 - Installing a plugin means putting its folder in `plugins/` (`builtin-plugins/` is for the plugins shipped with the app) (or unzipping it there manually), and then running `npm run install-plugins`.
-  Nothing is downloaded or unzipped automatically.
+  Nothing is downloaded or unzipped automatically. With the Docker image, the packages are installed inside the container (see "Adding a plugin" under "Run with Docker").
 - A plugin's `apiVersion` must match what this server supports. A mismatch is refused with a message.
 
 ## Develop
@@ -580,7 +581,8 @@ The two plugins that ship with this app have no setup step, because they only ne
 ## Troubleshooting
 
 - **"failed to load ... Cannot find package"**: the plugin's packages are not installed. `npm run install-plugins` (or `npm install` inside the
-  plugin's folder) fixes it. A sandboxed plugin cannot use the app's own packages.
+  plugin's folder) fixes it. In Docker, run `docker exec -it <container> sh -c "cd /app/plugins/<plugin-folder> && npm install --omit=dev --ignore-scripts"` and restart the
+  container. A sandboxed plugin cannot use the app's own packages.
 - **"this version of Node cannot sandbox plugins"**: the Node version lacks the permission flags. A newer Node is needed (26 is tested).
 - **A photo is missing and the log says it is "not a readable image" or "not a JPEG, PNG or WebP"**: only those three types are shown.
   Other types (HEIC, GIF, SVG, video) are skipped.
