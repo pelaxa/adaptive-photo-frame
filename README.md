@@ -193,7 +193,7 @@ a warning, which catches typos. `config.jsonc` holds the photo service's key, so
 | `minPhotos` | `8` | Fewest photos on screen at once, across both rows. Stacked pairs of small photos are used to reach it. Cannot exceed `maxPhotos` (1-40). The one exception is a [panorama row](#panoramas), which holds a single photo. |
 | `maxPhotos` | `12` | Most photos on screen at once. Lower means bigger photos (2-40). |
 | `panoramaChance` | `0.2` | Chance that a row change turns one row into a single [panorama](#panoramas) across its whole width, if the album has one wide enough: `0` never, `1` every time (0-1). |
-| `stackChance` | `0.3` | Chance that a new frame is two small stacked photos rather than one large photo: `0` never, `1` always. Portraits are never stacked (0-1). |
+| `stackChance` | `0.3` | Chance that a new frame is two small stacked photos rather than one large photo, both for a new row and when one frame is replaced (the neighbours then shrink or stretch to suit, within the row-fill limit): `0` never, `1` always. Portraits are never stacked (0-1). |
 | `hardware` | `"standard"` | How much animation to use, and how big the photos are; see [Hardware levels](#hardware-levels). `"high-power"`, `"standard"` or `"low-power"`. |
 | `animationSeconds` | `1` | Length of each slide/fold (0.2-5). Not used on `"low-power"`. |
 | `accordionStrips` | `4` | Folds in an accordion animation (2-8). Only used on `"high-power"`. |

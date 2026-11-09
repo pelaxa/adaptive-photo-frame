@@ -16,7 +16,7 @@
  * The browser only talks to this app's own server; it never sees Immich itself.
  * Pure layout maths lives in layout.js (unit tested); this file does the DOM work.
  */
-import { naturalWidth, frameHeightPercents, placeColumns, layoutRatio, isPanorama, photoLimits, accordionStrips, rowFill, MIN_ROW_FILL } from './layout.js';
+import { naturalWidth, frameHeightPercents, placeColumns, layoutRatio, isPanorama, photoLimits, wantsPair, accordionStrips, rowFill, MIN_ROW_FILL } from './layout.js';
 import { createClockFormatter, msUntilNextTick } from './clock.js';
 import { pickCorners } from './corners.js';
 import { pickInSequence, registerNewImages, shuffle } from './sequence.js';
@@ -665,9 +665,19 @@ async function replaceColumn(row) {
     const panoElsewhere = rows.some(r => r !== row && r.pano);
     const rowOthers = others.reduce((sum, c) => sum + c.photos.length, 0);
     const fewest = Math.max(1, panoElsewhere ? Math.ceil(minPhotos() / rows.length) - rowOthers : minPhotos() - otherPhotos);
-    const candidates = Array.from({ length: CANDIDATES }, () => randomColumn(new Set(), most, fewest)).filter(c => c.length);
-    const enough = candidates.filter(c => c.length >= fewest);
-    const photos = bestFit(enough.length ? enough : candidates, space, height);
+    // The kind of column (pair or single) is rolled first, then the best-fitting one of that kind is taken. Choosing by width alone
+    // would always replace a pair with a pair and a single with a single, and the number of photos would only ever fall.
+    // If the rolled kind would leave the row too empty (or no such column can be drawn), fall back to the best fit of any kind.
+    const kind = wantsPair(most, fewest, PAIR_CHANCE, Math.random()) ? 2 : 1;
+    const draw = (maxIn, minIn) => Array.from({ length: CANDIDATES }, () => randomColumn(new Set(), maxIn, minIn)).filter(c => c.length);
+    const ofKind = draw(kind === 2 ? most : 1, kind).filter(c => c.length === kind);
+    const rowFillWith = c => rowFill([...others.map(o => widthOf(o.photos, height)), widthOf(c, height)], width);
+    let photos = ofKind.length ? bestFit(ofKind, space, height) : null;
+    if (!photos || rowFillWith(photos) < MIN_ROW_FILL) {
+      const candidates = draw(most, fewest);
+      const enough = candidates.filter(c => c.length >= fewest);
+      photos = bestFit(enough.length ? enough : candidates, space, height);
+    }
 
     // Never leave the row emptier than MIN_ROW_FILL because of this swap (it would stretch and crop the photos): if the best
     // replacement does that, and makes the row emptier than it is now, rebuild the whole row instead.
