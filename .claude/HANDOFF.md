@@ -126,10 +126,10 @@ verified, and what is open. Keep it short and update it when the state changes.
   the way, if ever needed.
 - Sequence mode follows the order loosely (look-ahead of 6 photos); strict order is `LOOK_AHEAD = 1` in `public/sequence.js`.
 - `npm run check` prints the Immich upload URL including the share key.
-
-## Key decisions already made (do not reopen without the owner)
-
-Upload dropped from the app; QR links to a plugin's own upload page. `providers/` removed: everything is a sandboxed plugin. Config moved
-from `.env` to `config.jsonc`. Plugin ids are folder names (case-sensitive), first enabled entry wins. Immich uses the documented `?key=`
-parameter. Sandbox is always on (restricts files, not network). Default port 3000. README in the third person. Photos never repeat on
-screen at once. Newest-first is the default direction.
+- Possible next features (discussed 2026-11-08, nothing decided; plan with the owner before building):
+  - Detect server restarts so open pages reload: `/api/config` reports a start id, the page re-checks it every so often and reloads when it
+    changes or the server comes back. Also the natural signal for a live config reload (config is read once at start-up; only `custom.css` is live).
+  - Synced clients: today each browser picks photos, layouts, effects and timing itself, so two screens differ. Idea: the server owns the
+    state (it can run the pure `public/layout.js` and `public/sequence.js`) and pushes timed steps over server-sent events (a GET stream, no
+    new dependency, preferred over WebSockets); clients preload, then animate at the server time. Open questions: SSE vs WebSockets, synced as
+    the only mode or opt-in, acceptable drift (expect 50-200 ms), handling of clients that load late.
