@@ -47,7 +47,7 @@ function fail(message) {
 async function check(runtime, log) {
   const { plugin, settings } = runtime;
   console.log(`Plugin "${plugin.name}" loaded (settings valid)`);
-  await plugin.init(settings).catch(e => fail(`init() threw: ${e.message}`));
+  await plugin.init(settings, runtime.allowedPostHosts).catch(e => fail(`init() threw: ${e.message}`));
   console.log('ok    init()');
 
   const album = await runtime.getImages().catch(e => fail(`getImages() threw: ${e.message}`));
@@ -78,7 +78,7 @@ try {
     if (!runtime.plugin.setup) {
       console.log(`Plugin "${runtime.plugin.name}" has no setup step.`);
     } else {
-      await runtime.plugin.setup({ ...runtime.ctx, settings: runtime.settings, prompt: q => rl.question(q) });
+      await runtime.plugin.setup(runtime.allowedPostHosts);
     }
     rl.close();
   } else {

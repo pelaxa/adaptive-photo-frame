@@ -2,11 +2,13 @@
  * style.css - styles for the photo wall.
  *
  * Structure (built by app.js):
+ *   .message > .starting  the "Starting..." picture (two rows of boxes) and its words
  *   .gallery            full screen, holds two .row strips
  *     .row              one strip, half the screen height; columns are positioned
  *                       inside it with pixel left/width values set from JavaScript
  *       .column         one or two stacked photos
  *         .frame > img  a photo, cropped (object-fit: cover) only by a few percent
+ *         .frame > .frame-caption  optional one-line caption (display.caption), bottom-left of the photo
  *
  * Gaps between photos come from black borders on the frames, so no extra spacing
  * maths is needed in JavaScript.
@@ -49,6 +51,7 @@ html, body {
 }
 
 .frame {
+  position: relative; /* the caption is placed inside it */
   box-sizing: border-box;
   width: 100%; /* height is a percentage set from JavaScript */
   border: 3px solid #000;
@@ -61,6 +64,58 @@ html, body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* The "Starting..." screen: a tiny wall of two rows of boxes. app.js (runStartingBoxes) slides one box out and a new one in every
+   second or so; the neighbours glide to their new widths through the flex-grow transition below. custom.css can restyle it,
+   e.g. `.starting-box { background: #8ab; }`. */
+.starting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3vh;
+}
+
+.starting p { margin: 0; }
+
+.starting-boxes {
+  display: flex;
+  flex-direction: column;
+  gap: 1vh;
+  width: 40vh;
+}
+
+.starting-row {
+  display: flex;
+  gap: 1vh;
+  height: 9vh;
+  overflow: hidden; /* boxes slide in from, and out to, outside the row */
+}
+
+.starting-box {
+  flex: 1 1 0; /* the width share is set from JavaScript */
+  border-radius: .6vh;
+  background: #fff;
+  opacity: .75;
+  transition: flex-grow .5s cubic-bezier(.65, 0, .35, 1);
+}
+
+/* The caption (display.caption): one line over the bottom-left of a photo. custom.css restyles or hides it, for example
+   `.frame-caption { display: none; }` or `.frame-caption { font-size: 2vh; }`. */
+.frame-caption {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: .4vh 1vh;
+  background: var(--caption-background, rgba(0, 0, 0, .5));
+  color: var(--caption-color, #fff);
+  font: 1.8vh sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-top-right-radius: var(--box-radius);
 }
 
 .message {
@@ -77,7 +132,7 @@ html, body {
   width: var(--qr-size);
   height: var(--qr-size);
   box-sizing: border-box;
-  padding: 5px;
+  padding: 5px 5px 15px 5px;
   /* The look. Defaults: white squares and caption on a frosted-glass panel over the photos. custom.css changes any of it, for example
      `.qrcode { color: #000; background: #fff; backdrop-filter: none; }`. Keep strong contrast between color and background, or phones cannot scan it. */
   color: var(--qr-color, #fff); /* the squares and the caption */

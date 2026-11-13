@@ -19,6 +19,7 @@
 import { naturalWidth, frameHeightPercents, placeColumns, layoutRatio, isPanorama, photoLimits, wantsPair, accordionStrips, rowFill, MIN_ROW_FILL } from './layout.js';
 import { createClockFormatter, msUntilNextTick } from './clock.js';
 import { pickCorners } from './corners.js';
+import { formatCaption } from './caption.js';
 import { pickInSequence, registerNewImages, shuffle } from './sequence.js';
 
 // ---- Constants: tuning numbers first, then the ones that come from the server's settings ----
@@ -31,6 +32,17 @@ const CANDIDATES = 16;
 const PLAN_ATTEMPTS = 8;
 /** The next photo is drawn at random from this many of the photos that were shown longest ago. */
 const SAMPLE_POOL_SIZE = 24;
+/** The "Starting..." picture is this many rows of boxes, like the wall's two rows. */
+const STARTING_ROWS = 2;
+/** Boxes in each row of the "Starting..." picture. */
+const STARTING_BOXES = 4;
+/** Milliseconds between two box changes in the "Starting..." picture. */
+const STARTING_STEP_MS = 1100;
+/** How long (ms) a box takes to slide out, and again to slide in. */
+const STARTING_MOVE_MS = 500;
+/** A new box in the "Starting..." picture gets a width between these two shares (a flex-grow factor, like a photo of another shape). */
+const STARTING_GROW_MIN = 0.7;
+const STARTING_GROW_MAX = 2.4;
 /** While the photo source is still starting, how often (milliseconds) the page asks whether it is ready. */
 const START_POLL_MS = 3000;
 /** Planning stops adding columns to a row when less than this many row-heights of width are left. */
@@ -82,8 +94,29 @@ const config = await getJson('/api/config');
 // file from running until then.
 if (!config.ready) {
   const starting = document.querySelector('.message');
-  starting.textContent = 'Starting...';
+  // A small picture of the wall above the words: two rows of boxes, one box at a time sliding out and a new one sliding in
+  // (see runStartingBoxes). On low-power hardware, or when the device asks for reduced motion, the boxes stand still.
+  const picture = document.createElement('div');
+  picture.className = 'starting';
+  const boxes = document.createElement('div');
+  boxes.className = 'starting-boxes';
+  for (let r = 0; r < STARTING_ROWS; r++) {
+    const row = document.createElement('div');
+    row.className = 'starting-row';
+    for (let b = 0; b < STARTING_BOXES; b++) {
+      const box = document.createElement('div');
+      box.className = 'starting-box';
+      box.style.flexGrow = startingGrow();
+      row.append(box);
+    }
+    boxes.append(row);
+  }
+  const words = document.createElement('p');
+  words.textContent = 'Starting...';
+  picture.append(boxes, words);
+  starting.replaceChildren(picture);
   starting.hidden = false;
+  if (config.hardware !== 'low-power' && !matchMedia('(prefers-reduced-motion: reduce)').matches) runStartingBoxes(boxes);
   setInterval(() => getJson('/api/config').then(c => c.ready && location.reload(), () => {}), START_POLL_MS);
   await new Promise(() => {});
 }
@@ -111,6 +144,10 @@ const SIMPLE_MOTION = config.hardware !== 'high-power';
 const ENTER_DELAY = ANIM_MS * ENTER_DELAY_FRACTION;
 /** Number of hinged strips an accordion fold is made of. */
 const ACCORDION_STRIPS = config.accordionStrips;
+/** The caption template (display.caption); empty = no caption on the photos. */
+const CAPTION_TEMPLATE = config.caption;
+/** Language for {date} in captions: the clock's locale if one is set, else the browser's own. */
+const CAPTION_LOCALE = config.clock.locale || undefined;
 
 
 /**
@@ -179,8 +216,8 @@ const INSTANT = { exit: async () => {}, enter: async () => {} };
 const EFFECTS = NO_ANIMATION ? [INSTANT] : SIMPLE_MOTION ? STANDARD_EFFECTS : [...SLIDES, ...FLIPS, ...ACCORDIONS, CONVEYOR];
 
 /**
- * @typedef {{id: string, ratio: number}} Photo
- *   A photo from the album; ratio is width / height.
+ * @typedef {{id: string, ratio: number, date?: string, city?: string, state?: string, country?: string}} Photo
+ *   A photo from the album; ratio is width / height; the rest are optional facts for the caption.
  * @typedef {{el: HTMLElement, photos: Photo[], left?: number, width?: number}} Column
  *   One or two stacked photos; left/width are the current pixel position inside the row.
  * @typedef {{el: HTMLElement, dir: 1|-1, columns: Column[], busy: boolean, pano: boolean}} Row
@@ -188,6 +225,44 @@ const EFFECTS = NO_ANIMATION ? [INSTANT] : SIMPLE_MOTION ? STANDARD_EFFECTS : [.
  *   dir is the side new columns enter from (1 = right end, -1 = left end);
  *   busy is true while an animation is running so a row is never changed twice at once.
  */
+
+/**
+ * A random width share for a box in the "Starting..." picture.
+ * @returns {number} A flex-grow factor between STARTING_GROW_MIN and STARTING_GROW_MAX.
+ */
+function startingGrow() {
+  return STARTING_GROW_MIN + Math.random() * (STARTING_GROW_MAX - STARTING_GROW_MIN);
+}
+
+/**
+ * Makes the "Starting..." picture move like the wall: every STARTING_STEP_MS one box slides out of its row (up or down, taking
+ * turns), then a new box with another width slides in from the opposite side while its neighbours glide to make room
+ * (the glide is a CSS transition on flex-grow, see style.css). Runs until the page reloads.
+ * @param {HTMLElement} boxes - The element holding the rows of .starting-box elements.
+ * @returns {void}
+ */
+function runStartingBoxes(boxes) {
+  if (!Element.prototype.animate) return; // very old browsers: the boxes just stand still
+  const all = [...boxes.querySelectorAll('.starting-box')];
+  let busy = false;
+  let upward = true;
+  setInterval(async () => {
+    if (busy) return;
+    busy = true;
+    const box = all[Math.floor(Math.random() * all.length)];
+    const away = upward ? -130 : 130; // percent of the box's own height, enough to leave the row
+    upward = !upward;
+    try {
+      const out = box.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${away}%)` }], { duration: STARTING_MOVE_MS, easing: EASING, fill: 'forwards' });
+      await out.finished;
+      box.style.flexGrow = startingGrow(); // the neighbours glide to the new widths
+      const arrive = box.animate([{ transform: `translateY(${-away}%)` }, { transform: 'translateY(0)' }], { duration: STARTING_MOVE_MS, easing: EASING });
+      out.cancel(); // the arriving animation takes over from here
+      await arrive.finished;
+    } catch { /* an animation was cancelled: nothing to do */ }
+    busy = false;
+  }, STARTING_STEP_MS);
+}
 
 // ---- State: what the page remembers while it runs ----
 const gallery = document.querySelector('.gallery');
@@ -368,6 +443,13 @@ function createColumn(photos, imgs) {
     frame.className = 'frame';
     frame.style.height = `${heights[i]}%`;
     frame.append(img);
+    const caption = formatCaption(CAPTION_TEMPLATE, photos[i], CAPTION_LOCALE);
+    if (caption) {
+      const line = document.createElement('div');
+      line.className = 'frame-caption';
+      line.textContent = caption; // textContent: place names are never read as HTML
+      frame.append(line);
+    }
     el.append(frame);
     lastShown.set(photos[i].id, Date.now());
     shownCount.set(photos[i].id, (shownCount.get(photos[i].id) ?? 0) + 1);

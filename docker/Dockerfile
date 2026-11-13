@@ -7,7 +7,7 @@
 # plugins to the mapped plugins folder and run `npm install --ignore-scripts` inside them. The app itself runs as the unprivileged
 # user "node" (uid 1000), never as root, and the program files stay owned by root (read-only to the app).
 #
-# Folders (see the README): /app/builtin-plugins ships with the image (folder, immich-sharedAlbum, packages already installed);
+# Folders (see the README): /app/builtin-plugins ships with the image (folder, immich-sharedAlbum, immich-library, packages already installed);
 # /app/plugins (user plugins) and /app/config (settings) are meant to be mapped to the host; /app/.cache holds resized images.
 #
 # The base image is a build argument so it can be pinned by digest or swapped:

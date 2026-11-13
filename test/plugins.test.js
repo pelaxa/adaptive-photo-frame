@@ -106,3 +106,8 @@ test('the order a plugin asks for is passed on; anything else is random', () => 
   assert.equal(normalizeImages({ title: 'T', images: [], order: 'sideways' }, log).order, 'random');
   assert.match(warned[0], /unknown order "sideways"/);
 });
+
+test('normalizeImages keeps the optional caption facts that are text and drops the rest', () => {
+  const out = normalizeImages({ title: 'T', images: [{ id: 'a', ratio: 1, date: '2021-03-05T10:00:00', city: 'Paris', state: '', country: 5, extra: 'x' }] }, { warn() {} });
+  assert.deepEqual(out.images, [{ id: 'a', ratio: 1, date: '2021-03-05T10:00:00', city: 'Paris' }]);
+});

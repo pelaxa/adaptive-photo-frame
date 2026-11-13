@@ -66,6 +66,22 @@ verified, and what is open. Keep it short and update it when the state changes.
   without the rule; with 6 and 8 photos the emptiest row was 0.61 and 0.56 without it and 0.8 with it. Albums of 5 photos or fewer cannot satisfy it (each row gets a budget of one photo). That is the likely source of the
   original report, but the owner's actual album size was not asked. Not seen in a real browser; animation of the "rebuild instead of swap" path is the same `showRow` as for panoramas.
 
+## immich-library plugin, captions, allowedPostHosts (added 2026-11-10)
+
+- `builtin-plugins/immich-library`: Immich read with an **API key** (`x-api-key` header, never in a URL). `mode` = `album` (albumIds / albumNames, via the timeline), `memory` (`daysBefore` 0-15, default 7, plus a fixed 2 days ahead: one
+  `GET /memories?for=YYYY-MM-DD` per day) or `search` (`POST /search/smart` only, paged, `maxImages`, default 200; filters personIds, isFavorite, city, country). Immich is asked **once per local day** (`REFRESH_RETRY_MS` = 10 min back-off after a failure).
+  Order helpers are copied from the shared-album plugin (a sandboxed plugin cannot import from a sibling): keep them in step.
+- Why the memories API and the 2-day limit: probed on the owner's Immich 3.4.0 (2026-11-10, read-only GETs): `day`/`month` parameters (used by MMM-ImmichSlideShow) are **ignored** (the same 17 memories came back every time);
+  `for=YYYY-MM-DD` works, but Immich held memories only from about 27 days back to 2 days ahead. MMM-ImmichSlideShow should send `for=YYYY-MM-DD` on Immich 3.x (to fix there later).
+- **`allowedPostHosts` moved to config.jsonc**, per plugin entry (host names only), passed to the sandbox at `init`/`setup`; a plugin that still declares its own gets a warning and it is ignored. Default: none (GET only).
+  Owner decision: the `search` POST is an explicit exception to "GET only on the live Immich" (it reads only). AGENTS.md records it.
+- **`display.caption`** (template with `{date}`, `{year}`, `{city}`, `{state}`, `{country}`; a token the plugin does not provide is skipped with the text in front of it): `public/caption.js` (unit-tested), drawn by `public/app.js` as `.frame-caption`
+  at the bottom-left of a frame. Plugins add optional `date`/`city`/`state`/`country` to each image (kept by `normalizeImages`). Provided by immich-library and immich-sharedAlbum (no state); the folder plugin provides none (open idea: its EXIF date).
+- New setting type `list` (list of text) in `lib/settings.js`.
+- Tests: 138 pass (some need local port binding, so they fail inside the Claude Code sandbox with `listen EPERM`; run outside it). Verified with a pretend Immich only. **NOT verified:** a live Immich (run `npm run check` with an API key in
+  `config.jsonc`: albums, memories, search, ratio from EXIF orientation, the API key's permission names), smart search with machine learning on/off, how captions look in a browser (and that `position: relative` on `.frame` leaves the accordion folds unchanged),
+  the Docker image with the new plugin. `npm run check` prints no upload URL for this plugin (it has none).
+
 ## Docker (built and tested on the owner's Mac, Apple silicon, Docker Desktop)
 
 - `docker/` holds every Docker file: `Dockerfile`, `Dockerfile.dockerignore`, `docker-compose.yml`, `dockerBuild.js` (`npm run docker:build`, `docker:build:multi`),

@@ -76,3 +76,18 @@ test('burn-in protection is off by default and has no interval setting', () => {
   parseConfig(`{ "display": { "burnInMinutes": 5 }, "plugins": [${plugin}] }`, { warn: m => warnings.push(m) });
   assert.ok(warnings.some(w => /burnInMinutes/.test(w)), 'the interval is fixed, so a setting for it is flagged as unknown');
 });
+
+test('display.caption is empty by default; allowedPostHosts is an empty list unless the plugin entry names hosts', () => {
+  const c = parseConfig(`{ "plugins": [${plugin}] }`, log);
+  assert.equal(c.display.caption, '');
+  assert.deepEqual(c.plugin.allowedPostHosts, []);
+  const d = parseConfig('{ "display": { "caption": "{city}, {year}" }, "plugins": [{ "id": "a", "allowedPostHosts": ["Photos.Example.com"] }] }', log);
+  assert.equal(d.display.caption, '{city}, {year}');
+  assert.deepEqual(d.plugin.allowedPostHosts, ['photos.example.com']); // lower-cased, as a URL reports host names
+});
+
+test('allowedPostHosts must be bare host names', () => {
+  for (const bad of ['"photos.example.com"', '["https://photos.example.com"]', '["photos.example.com:2283"]', '["a/b"]', '[5]']) {
+    assert.throws(() => parseConfig(`{ "plugins": [{ "id": "a", "allowedPostHosts": ${bad} }] }`, log), /plugins\[0\]\.allowedPostHosts/);
+  }
+});
