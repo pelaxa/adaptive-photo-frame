@@ -49,6 +49,18 @@ const exifCache = new Map();
 let log;
 
 /**
+ * The day (and time) a photo was taken, as the place where it was taken showed it, for the app's caption.
+ * Immich keeps the capture time in UTC plus the hours of offset that place had; adding the offset gives the local clock reading.
+ * @param {string | null | undefined} iso - Capture time in UTC (ISO text).
+ * @param {number} [offsetHours=0] - Hours the photo's place was ahead of UTC.
+ * @returns {string | undefined} Local time as ISO text without a zone (its first ten characters are the day), or undefined if there is no usable date.
+ */
+export function localDate(iso, offsetHours = 0) {
+  const ms = Date.parse(iso ?? '');
+  return Number.isNaN(ms) ? undefined : new Date(ms + offsetHours * 3_600_000).toISOString().slice(0, 19);
+}
+
+/**
  * Turns the `order` setting into the field to sort by.
  * @param {string} value - The setting: "random", or an EXIF field name in any capitalisation.
  * @returns {{field: string | null, valid: boolean}} field = the matching name from EXIF_FIELDS (null for random);
@@ -161,7 +173,7 @@ export default {
    * Lists the album's photos. Newer Immich versions do not include assets in the album response,
    * so the list comes from the album's timeline (one request per time bucket). Videos are skipped.
    * With an `order.by` field the list is sorted by it, in the `order.sort` direction (see the notes at the top of this file).
-   * @returns {Promise<{title: string, images: {id: string, ratio: number}[], order: 'sequence' | 'random'}>}
+   * @returns {Promise<{title: string, images: {id: string, ratio: number, date?: string, city?: string, country?: string}[], order: 'sequence' | 'random'}>}
    */
   async getImages() {
     const opts = { albumId: cfg.albumId, key: cfg.shareKey };
@@ -170,7 +182,10 @@ export default {
     // The timeline returns parallel arrays (id[i], ratio[i], isImage[i] describe photo i).
     const timelineKey = orderField && TIMELINE_FIELDS[orderField];
     let rows = days.flatMap(d => d.id.flatMap((id, i) => (d.isImage[i]
-      ? [{ id, ratio: d.ratio[i], value: timelineKey ? d[timelineKey]?.[i] : undefined }]
+      ? [{
+        id, ratio: d.ratio[i], value: timelineKey ? d[timelineKey]?.[i] : undefined,
+        date: localDate(d.fileCreatedAt?.[i], d.localOffsetHours?.[i]), city: d.city?.[i] ?? undefined, country: d.country?.[i] ?? undefined
+      }]
       : [])));
 
     if (orderField) {
@@ -182,7 +197,7 @@ export default {
     }
     return {
       title: info.albumName,
-      images: rows.map(({ id, ratio }) => ({ id, ratio })),
+      images: rows.map(({ id, ratio, date, city, country }) => ({ id, ratio, date, city, country })),
       order: orderField ? 'sequence' : 'random'
     };
   },

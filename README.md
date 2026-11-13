@@ -14,6 +14,7 @@ The browser never talks to the photo service, so the service's address and keys 
 |---|---|---|
 | `folder` | `builtin-plugins/folder/` | a folder of image files inside the plugin's own folder (`builtin-plugins/folder/photos`) |
 | `immich-sharedAlbum` | `builtin-plugins/immich-sharedAlbum/` | an [Immich](https://immich.app) shared album, read through its shared link |
+| `immich-library` | `builtin-plugins/immich-library/` | an [Immich](https://immich.app) library, read with an API key: chosen albums, "on this day" memories, or a smart search ("dogs", "scenery") |
 
 ## Plugin Sandobx
 Every plugin runs in a [file-access sandbox](#the-plugin-sandbox). The app itself checks, resizes and caches every image with
@@ -32,6 +33,7 @@ Plugins for other services can be added by anyone (see [Writing a plugin](#writi
   that lacks them.
 - Optional: Docker, to run it as a container (see [Run with Docker](#run-with-docker))
 - For `immich-sharedAlbum`: an Immich server and an album with a **shared link** (Immich > album > Share)
+- For `immich-library`: an Immich server and a read-only **API key** (Immich > Account Settings > API Keys); search mode also needs Immich's smart search (machine learning) switched on
 - For `folder`: a folder of `.jpg`, `.jpeg`, `.png` or `.webp` files
 
 ## Deploy
@@ -110,7 +112,7 @@ docker pull ghcr.io/pelaxa/adaptive-photo-frame:1.2.3        # pelaxa/adaptive-p
 
 | Inside the container | What it is | Mount |
 |---|---|---|
-| `/app/builtin-plugins` | The plugins that ship with the app: `folder` and `immich-sharedAlbum`, with their packages already installed. | Not mounted (part of the image, read-only). |
+| `/app/builtin-plugins` | The plugins that ship with the app: `folder`, `immich-sharedAlbum` and `immich-library`, with their packages already installed. | Not mounted (part of the image, read-only). |
 | `/app/builtin-plugins/folder/photos` | The photos shown by the `folder` plugin. | A host folder of photos, read-only (`:ro`). Only for the `folder` plugin. The plugin cannot follow symbolic links, so mount the real folder. It has to be at this path: the sandboxed plugin can read only its own folder. |
 | `/app/config` | The settings folder. It holds the Immich share key, so keep it private. | A host folder. Required for any real use. |
 | `/app/plugins` | Plugins added by the user (empty in the image). | A host folder. Optional. |
@@ -193,17 +195,18 @@ a warning, which catches typos. `config.jsonc` holds the photo service's key, so
 | `minPhotos` | `8` | Fewest photos on screen at once, across both rows. Stacked pairs of small photos are used to reach it. Cannot exceed `maxPhotos` (1-40). The one exception is a [panorama row](#panoramas), which holds a single photo. |
 | `maxPhotos` | `12` | Most photos on screen at once. Lower means bigger photos (2-40). |
 | `panoramaChance` | `0.2` | Chance that a row change turns one row into a single [panorama](#panoramas) across its whole width, if the album has one wide enough: `0` never, `1` every time (0-1). |
-| `stackChance` | `0.3` | Chance that a new frame is two small stacked photos rather than one large photo: `0` never, `1` always. Portraits are never stacked (0-1). |
+| `stackChance` | `0.3` | Chance that a new frame is two small stacked photos rather than one large photo, both for a new row and when one frame is replaced (the neighbours then shrink or stretch to suit, within the row-fill limit): `0` never, `1` always. Portraits are never stacked (0-1). |
 | `hardware` | `"standard"` | How much animation to use, and how big the photos are; see [Hardware levels](#hardware-levels). `"high-power"`, `"standard"` or `"low-power"`. |
 | `animationSeconds` | `1` | Length of each slide/fold (0.2-5). Not used on `"low-power"`. |
 | `accordionStrips` | `4` | Folds in an accordion animation (2-8). Only used on `"high-power"`. |
+| `caption` | `""` (none) | One line of text on each photo, built from what the photo source knows about it. The template mixes plain text with the tokens `{date}` (the day the photo was taken, long form, in the language of `clock.locale` or the browser's), `{year}`, `{city}`, `{state}` and `{country}`: `"{city}, {year}"` shows "Paris, 2021". **A token the photo source does not provide is skipped together with the text in front of it**: the same template shows "2021" for a photo with no city, and nothing at all if no token has a value. Keep templates to values joined by simple separators such as `", "` or `" - "`. `immich-library` and `immich-sharedAlbum` provide the date and place (the shared-album timeline has no state); the `folder` plugin provides none, so no caption shows with it. The caption sits at the bottom-left of each photo; see [Custom styles](#custom-styles-customcss) to restyle or hide it. |
 | `burnInProtection` | `false` | For OLED screens, whose static bright pixels can burn in. When `true`, the clock and the QR code move to a different corner **every hour** (the interval is fixed): each one always goes to a corner it was not in, and they are never in the same corner at the same time. They fade out, move and fade back in (a one-second fade). `clock.position` and `qr.position` are where they start; if both name the same corner, they are separated at once. Only boxes that are showing move (the QR code appears only when the plugin has an upload address). The positions are not remembered: a page reload, which only happens while there are no photos, starts again from the configured corners. Photos change all the time and need no protection. |
 
 #### Custom styles: `custom.css`
 
 `custom.css` sits in the same folder as `config.jsonc` (the `config` folder, which is the mapped folder in Docker). The page loads it **after** its own styles, so a rule in it wins. It is optional: without it the page looks as shipped. Reload the page to see a change (no restart). `config/custom.example.css` is the commented template, with ready-made snippets to switch on; in Docker the first start creates both files (see [Run with Docker](#run-with-docker)), and existing files are never overwritten.
 
-The class names meant for overriding are `.gallery` (the whole wall), `.row`, `.column`, `.frame` (a photo and its border), `.message` (text such as "no photos"), `.clock` (with `.clock-date` and `.clock-time` inside it) and `.qrcode` (with its caption `p`). Other classes are internal and may change between versions. The file is served to anyone who can open the page, so it must not hold anything private, and the page's layout and timing (JavaScript) cannot be changed from it.
+The class names meant for overriding are `.gallery` (the whole wall), `.row`, `.column`, `.frame` (a photo and its border), `.frame-caption` (the line of text from `display.caption`, at the bottom-left of a photo), `.message` (text such as "no photos"), `.starting` (the "Starting..." picture: a tiny wall of two rows of boxes, `.starting-box`, where boxes slide out and new ones slide in; they stand still on `"low-power"` hardware or when the device asks for reduced motion), `.clock` (with `.clock-date` and `.clock-time` inside it) and `.qrcode` (with its caption `p`). Other classes are internal and may change between versions. The file is served to anyone who can open the page, so it must not hold anything private, and the page's layout and timing (JavaScript) cannot be changed from it.
 
 **Clock and QR code.** Both are corner boxes. Their corner and content are set in `config.jsonc` (`clock.position`, `qr.position`, `qr.text`, ...); their look is set here, and the defaults live in the app's own `style.css`. Because `custom.css` loads last, a normal rule wins:
 ```css
@@ -213,7 +216,8 @@ The class names meant for overriding are `.gallery` (the whole wall), `.row`, `.
 :root { --box-radius: 14px; --qr-size: 14vh; }                                               /* rounded corner and QR size, for both boxes */
 ```
 - **`.qrcode`**: `color` paints both the squares and the caption, `background` is the panel behind them (default: black at 35% opacity), and the frosted-glass effect is `backdrop-filter` (default `blur(12px)`; set it to `none` for a flat panel, which is also lighter on weak devices). Keep strong contrast between `color` and `background`, or phones cannot scan the code; white on a dark panel is an inverted code that most current phone cameras read, and if scanning fails, use a dark `color` on a light `background`.
-- **Variables** can be used instead of properties: `--clock-background`, `--clock-color`, `--qr-background`, `--qr-color`, plus `--box-radius` and `--qr-size` for both boxes.
+- **`.frame-caption`**: the photo captions. Hide them with `.frame-caption { display: none; }`, or restyle: `.frame-caption { font-size: 2.4vh; }`.
+- **Variables** can be used instead of properties: `--clock-background`, `--clock-color`, `--qr-background`, `--qr-color`, `--caption-background`, `--caption-color`, plus `--box-radius` and `--qr-size` for both boxes.
 
 Example: some Android TV browsers (for example Fully Kiosk Browser on a streaming stick) draw the black border between photos paler than it should be. This fixes it by letting the frame's background show through a transparent border:
 ```css
@@ -234,13 +238,13 @@ Before this setting had three levels, `"standard"` meant what is now `"high-powe
 
 #### `order` setting
 
-Both the `immich-sharedAlbum` and `folder` plugins have an `order` setting, an object with two fields:
+The `immich-sharedAlbum`, `immich-library` and `folder` plugins have an `order` setting, an object with two fields:
 
 ```jsonc
 "order": { "by": "DateTimeOriginal", "sort": "desc" }
 ```
 
-- **`by`**: `"random"`, or an EXIF field name in any capitalisation. The default is `"random"` for `immich-sharedAlbum` and
+- **`by`**: `"random"`, or an EXIF field name in any capitalisation. The default is `"random"` for the two Immich plugins and
   `"DateTimeOriginal"` (the date taken) for `folder`.
   - `"random"`: photos are chosen at random, longest-ago first (see below).
   - An EXIF field: photos are listed by that field's value and shown in that order, round after round. Photos with no value for the field come
@@ -333,6 +337,11 @@ fall through to the next entry.
 Every plugin always runs in the [file-access sandbox](#the-plugin-sandbox). There is no setting to turn that off, and a `sandbox` line in
 an entry stops the server with a message, so nobody can believe a plugin is unsandboxed.
 
+Each entry may also carry `allowedPostHosts`, a list of host names (`["photos.example.com"]`: the name only, with no `https://`, port or path). It is **the user's list of
+the only hosts that plugin's `ctx.fetch` may send non-GET requests (POST and the like) to**. The default is none, so a plugin can read but not POST. A plugin cannot add to the list
+itself: one that still declares `allowedPostHosts` in its own code gets a warning and the declaration is ignored. `immich-library` needs its Immich host here for `search` mode only
+(Immich offers its smart search only as a POST, which still changes nothing). Like the rest of `ctx.fetch`, this is a safety net, not enforcement: see [the plugin sandbox](#the-plugin-sandbox).
+
 #### `immich-sharedAlbum` settings
 
 | Setting | Required | What it does |
@@ -345,6 +354,53 @@ an entry stops the server with a message, so nobody can believe a plugin is unsa
 The album is read through the shared link, and the shared-link page is the address the QR code points to. With `order.by` set to a date field and `sort` `"desc"`,
 the first photos shown in every round are the newest. The plugin keeps its own
 packages (the Immich SDK) in `builtin-plugins/immich-sharedAlbum/node_modules`, installed by `npm run install-plugins`.
+
+#### `immich-library` settings
+
+Photos from an Immich library, read with an **API key** (Account Settings > API Keys in Immich). It has three modes, chosen with `mode`. Unlike a share key, an API key can read
+the whole library, so **create it with read-only permissions only**: `asset.read`, `album.read`, `memory.read` and `timeline.read` (and `person.read` if `personIds` is used). The
+plugin never changes anything in Immich. The key is sent in a request header, never in an address. (These permission names come from the Immich SDK this plugin uses; if Immich
+reports "forbidden" for a mode, add the permission it names.) This plugin gives no upload address, so there is no QR code with it.
+
+| Setting | Required | What it does |
+|---|---|---|
+| `url` | yes | Address of the Immich server, with no trailing slash and no `/api`. |
+| `apiKey` | yes | The API key. Keep `config.jsonc` private. |
+| `mode` | yes | `"album"`, `"memory"` or `"search"` (below). |
+| `maxImages` | no, `0` | Most photos to use (0-100000). `0` means all, except in `search` mode, where it means 200. Extra photos are dropped at random, or from the end when `order` is set. |
+| `order` | no, `{ "by": "random", "sort": "desc" }` | How photos are ordered: see [the `order` setting](#order-setting). **`search` mode ignores `order`** (with a warning if it is set): photos stay in Immich's own ranking, best match first, as in its search box. Memory results carry their EXIF details, so any field works at no extra cost. For albums, the timeline fields (`dateTimeOriginal`, `city`, `country`, `latitude`, `longitude`) are free and any other field costs one request per photo (spread over a few refreshes). |
+| `albumIds` | `album` mode | List of album ids (the last part of an album's web address in Immich). Used instead of `albumNames` when both are set (with a warning). |
+| `albumNames` | `album` mode | List of album names, spelled exactly (capitals count). Albums the user owns and albums shared with the user are both found. A name that matches nothing stops the start with a message. |
+| `daysBefore` | no, `7` | `memory` mode: how many days back from today to include (0-15). |
+| `query` | `search` mode | What to look for, in words: `"dogs"`, `"mountain sunset"`, `"birthday cake"`. |
+| `personIds` | no, none | `search` mode: only photos of these people (list of person ids). |
+| `isFavorite` | no, `false` | `search` mode: only photos marked as favourites. |
+| `city`, `country` | no, none | `search` mode: only photos taken in this city or country. |
+
+Settings that belong to another mode are ignored with a warning.
+
+- **`album`**: every photo in the listed albums, without duplicates. Videos are skipped.
+- **`memory`**: Immich's "on this day" memories, which are photos taken on a date in earlier years. The plugin asks Immich for each day from `daysBefore` days ago up to **2 days
+  ahead of today** (one request per day), so `daysBefore: 7` shows photos from the same date in earlier years for the last week, today and the next two days. **The 2 days ahead are fixed: Immich
+  keeps its memories only about two days ahead, so asking for more finds nothing.** For the same reason the number of days back is limited to 15. A day with no photos from earlier years has no
+  memory, so a gap in the dates is normal.
+- **`search`**: Immich's smart search, which finds photos by meaning (it needs Immich's machine-learning feature switched on). Results stay in Immich's order of relevance, best match first (`order` is ignored); the wall follows that order loosely, round after round.
+  **It sends a POST request to Immich (`/search/smart` only), so the Immich host must be listed in `allowedPostHosts` on the plugin's entry in `config.jsonc`.** Without it, the plugin stops at start-up and says so.
+
+**Immich is asked once a day.** The plugin keeps its list and asks Immich again only on the first request after the date changes (or after a restart); the page's `refreshSeconds` does not make it ask more often. A photo added to Immich therefore appears
+the next day or after a restart. If a refresh fails, the old list stays in use and Immich is left alone for 10 minutes. The date is the one in the plugin's time zone, which in Docker is UTC unless the host's `/etc/localtime` is mounted. The photos themselves are downloaded when they are first shown and cached
+for a day by the app. The plugin keeps its own packages (the Immich SDK) in `builtin-plugins/immich-library/node_modules`, installed by `npm run install-plugins`.
+
+Example (search mode):
+
+```jsonc
+{
+  "id": "immich-library",
+  "enabled": true,
+  "allowedPostHosts": ["photos.example.com"],
+  "settings": { "url": "https://photos.example.com", "apiKey": "your-api-key", "mode": "search", "query": "dogs", "maxImages": 300 }
+}
+```
 
 #### `folder` settings
 
@@ -438,8 +494,8 @@ What the sandbox does **not** do:
 
 - **It does not restrict the network.** A plugin can contact any address, including other devices on the local network, and can send out
   everything it can see: its own settings (including its token) and the images it fetches.
-- **It does not enforce read-only access.** The `ctx.fetch` given to a plugin blocks anything but GET unless the plugin lists the host in
-  `allowedPostHosts`, but that is a safety net against accidents, not a rule: a plugin can use Node's `http` module, another library, or the
+- **It does not enforce read-only access.** The `ctx.fetch` given to a plugin blocks anything but GET unless the user listed the host in
+  the plugin entry's `allowedPostHosts` in `config.jsonc`, but that is a safety net against accidents, not a rule: a plugin can use Node's `http` module, another library, or the
   global `fetch` and send POST, PUT or DELETE requests anywhere.
 - **It is not a hardened sandbox.** Node describes its permission system as a safety net for code that is mostly trusted, not as protection
   against code written to escape it. Anything that must be isolated from a hostile plugin should also run in a container or under a
@@ -480,7 +536,7 @@ Files in `public/` are served as they are (there is no build step), so a browser
 | `lib/logger.js` | The logger; plugins get one prefixed with their name. |
 | `lib/sandbox.js`, `lib/sandboxChild.js` | Start a plugin in a restricted Node process and call it through messages. |
 | `lib/images.js` | The image service: download, check, resize and cache. |
-| `builtin-plugins/` | The plugins shipped with the app (`folder/`, `immich-sharedAlbum/`), each with its own `package.json` and `node_modules`. |
+| `builtin-plugins/` | The plugins shipped with the app (`folder/`, `immich-sharedAlbum/`, `immich-library/`), each with its own `package.json` and `node_modules`. |
 | `plugins/` | Plugins added by the user (empty in the repository), laid out the same way. Always sandboxed. |
 | `scripts/pluginTool.js` | `npm run check` and `npm run setup`. |
 | `scripts/installPlugins.js` | `npm run install-plugins`. |
@@ -519,9 +575,9 @@ export default {
   settings: [                         // required (use [] for none). What config.jsonc may contain for the plugin.
     { key: 'token', type: 'string', required: true, secret: true, description: 'API token' },
     { key: 'count', type: 'number', default: 50, min: 1, max: 500, description: 'How many photos' }
-  ],                                  // types: string, number, boolean, path, enum (values: [...]), color, and object
-                                      // (a group: { key: 'order', type: 'object', fields: [ ...settings... ] }, each field with its own default)
-  allowedPostHosts: [],               // optional. Hosts that may receive non-GET requests (e.g. search APIs that use POST).
+  ],                                  // types: string, number, boolean, path, enum (values: [...]), color, list (a list of
+                                      // text values) and object (a group: { key: 'order', type: 'object', fields: [ ...settings... ] },
+                                      // each field with its own default)
 
   async init(settings, ctx) {},       // optional. Runs at every start. Connect, check the key, and THROW if not ready:
                                       // the server logs it, shows "Starting..." and retries every startupRetrySeconds.
@@ -530,7 +586,8 @@ export default {
   async getImages() {                 // required. Lists the available images (not videos). ratio = width / height as DISPLAYED
     return {                          // (after any rotation). Ids are unique text chosen by the plugin.
       title: 'My album',
-      images: [{ id: 'any-unique-text', ratio: 1.5 }],
+      images: [{ id: 'any-unique-text', ratio: 1.5 }],   // optional per image: date (ISO text whose first ten characters are
+                                      // the day it was taken), city, state, country: used by display.caption, skipped if absent
       order: 'sequence'               // optional. 'sequence' = show them in the order listed, round after round, every image
     };                                // once before any repeats. 'random' (the default) = at random, longest-ago first.
                                       // (A plugin may offer its own `order` setting, as the built-in ones do, to choose this.)
@@ -547,7 +604,8 @@ export default {
 ```
 
 `ctx` is `{ fetch, log, pluginDir, prompt }`. `ctx.fetch` is a GET-only fetch to use for requests (advice, not enforcement: see the sandbox
-section), `ctx.log.info/warn/debug/error(...)` writes messages prefixed with the plugin's `name`, `pluginDir` is the plugin's own folder (the
+section). A plugin that must POST (a search API, say) cannot allow that itself: the user adds the service's host to `allowedPostHosts` on the plugin's entry in `config.jsonc`,
+and the README of such a plugin should say so, `ctx.log.info/warn/debug/error(...)` writes messages prefixed with the plugin's `name`, `pluginDir` is the plugin's own folder (the
 one place it can read), and `prompt` is for the setup step. `settings` arrive already validated, typed and
 defaulted, so a plugin should not read the config file or the environment itself. The server enforces these rules:
 
@@ -625,7 +683,7 @@ version** (`AGPL-3.0-or-later`). The full text is in [`LICENSE`](LICENSE). In pl
 
 
 **Plugins.** Plugins run as separate programs and talk to the app only through the documented plugin contract. The two that ship in this
-repository (`builtin-plugins/folder`, `builtin-plugins/immich-sharedAlbum`) are covered by the same license. A plugin written by someone else is that
+repository (`builtin-plugins/folder`, `builtin-plugins/immich-sharedAlbum`, `builtin-plugins/immich-library`) are covered by the same license. A plugin written by someone else is that
 author's work and carries the license its author chooses.
 
 **Dependencies.** The app depends on `sharp` (Apache-2.0, with its LGPL-3.0-or-later image library), `jsonc-parser`, `qrcode`, `image-size`

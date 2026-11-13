@@ -1,7 +1,7 @@
 // Run with `npm test`. Checks the layout maths that decides how photos are cropped.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { naturalWidth, frameHeightPercents, placeColumns, layoutRatio, isPanorama, photoLimits, accordionStrips, STRIP_OVERLAP, rowFill, MIN_ROW_FILL } from '../public/layout.js';
+import { naturalWidth, frameHeightPercents, placeColumns, layoutRatio, isPanorama, photoLimits, accordionStrips, STRIP_OVERLAP, rowFill, MIN_ROW_FILL, wantsPair } from '../public/layout.js';
 
 /**
  * Checks two numbers are equal apart from rounding error.
@@ -79,4 +79,11 @@ test('row fill: a lone pair, two pairs or one regular photo are too empty for a 
   assert.ok(fill([single, single]) >= MIN_ROW_FILL);
   assert.ok(fill([single, pair, pair]) >= MIN_ROW_FILL);
   near(rowFill([100, 50], 200), 0.75);
+});
+
+test('wantsPair rolls against the chance, but never exceeds the limit and is forced below the minimum', () => {
+  assert.equal(wantsPair(2, 1, 0.4, 0.3), true);
+  assert.equal(wantsPair(2, 1, 0.4, 0.5), false);
+  assert.equal(wantsPair(1, 1, 1, 0), false); // no room for a second photo
+  assert.equal(wantsPair(2, 2, 0, 0.99), true); // the wall is below its minimum
 });

@@ -134,3 +134,40 @@ test('setup questions reach the server side, and a missing package gives advice'
   const missing = await world(`import x from 'notinstalled'; export default { apiVersion: 1, name: 'X', settings: [], getImages() {}, getImage() {} };`);
   await assert.rejects(loadPlugin('probe', missing, { timeoutSeconds: 3, log: quiet }), /npm run install-plugins/);
 });
+
+/** Plugin source that POSTs to `url` through the fetch it was given (ctx.fetch) and reports the outcome in the title. It also declares hosts of its own, which must be ignored. */
+const postSource = url => `
+let ctx;
+export default {
+  apiVersion: 1, name: 'Poster', settings: [], allowedPostHosts: ['127.0.0.1'],
+  async init(settings, c) { ctx = c; },
+  async getImages() {
+    let result;
+    try { result = (await ctx.fetch(${JSON.stringify(url)}, { method: 'POST', body: 'x' })).status; } catch (e) { result = 'BLOCKED:' + e.message.slice(0, 60); }
+    return { title: String(result), images: [{ id: 'a', ratio: 1 }] };
+  },
+  async getImage() { return { body: Buffer.from([1]) }; }
+};`;
+
+test('POST works only for hosts the user listed on the plugin entry in config.jsonc; a host the plugin declares itself is ignored', async () => {
+  const web = createServer((req, res) => res.end('hi'));
+  await new Promise(r => web.listen(0, '127.0.0.1', r));
+  const url = `http://127.0.0.1:${web.address().port}/`;
+  try {
+    const base = await world('');
+    await writeFile(join(base, 'plugins/probe/index.js'), postSource(url));
+    const warnings = [];
+    const log = { ...quiet, warn: m => warnings.push(m), child() { return log; } };
+    const blocked = await createRuntime({ config: { server, plugin: { ...sandboxed, allowedPostHosts: [] } }, log, baseDir: base });
+    await new Promise(r => setTimeout(r, 500)); // let init run
+    assert.match((await blocked.getImages()).title, /^BLOCKED:Blocked POST request to 127\.0\.0\.1/);
+    blocked.close();
+    const allowed = await createRuntime({ config: { server, plugin: { ...sandboxed, allowedPostHosts: ['127.0.0.1'] } }, log, baseDir: base });
+    await new Promise(r => setTimeout(r, 500));
+    assert.equal((await allowed.getImages()).title, '200');
+    allowed.close();
+    assert.ok(warnings.some(m => /declares allowedPostHosts, which is ignored/.test(m)));
+  } finally {
+    web.close();
+  }
+});

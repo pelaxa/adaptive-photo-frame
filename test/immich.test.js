@@ -1,7 +1,7 @@
 // Checks the Immich plugin's ordering against a pretend Immich server (no network needed).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import immich, { EXIF_FIELDS, sortRows, resolveOrder } from '../builtin-plugins/immich-sharedAlbum/index.js';
+import immich, { EXIF_FIELDS, sortRows, resolveOrder, localDate } from '../builtin-plugins/immich-sharedAlbum/index.js';
 
 /**
  * A pretend Immich: answers the few GET requests the plugin makes, from a list of assets.
@@ -129,4 +129,14 @@ test('sort "asc" lists the oldest first, "desc" (the default) the newest first',
   assert.deepEqual(ids(await immich.getImages()), ['s2', 's1', 's3']);
   await start(assets, 'DateTimeOriginal');
   assert.deepEqual(ids(await immich.getImages()), ['s3', 's1', 's2']);
+});
+
+test('each photo carries its local date, city and country for the caption', async () => {
+  await start([{ id: 'c1', fileCreatedAt: '2024-05-01T23:30:00.000Z', city: 'Tokyo' }, { id: 'c2' }], 'random');
+  const [a, b] = (await immich.getImages()).images;
+  assert.equal(a.city, 'Tokyo');
+  assert.equal(a.date.slice(0, 10), '2024-05-01');
+  assert.equal(b.date, undefined);
+  assert.equal(localDate('2024-05-01T23:30:00.000Z', 9).slice(0, 10), '2024-05-02', 'the offset moves the day');
+  assert.equal(localDate(null), undefined);
 });

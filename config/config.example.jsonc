@@ -73,7 +73,14 @@
 
     // How many folds an accordion animation has. More = a finer concertina but more work.
     // Only used when hardware is "high-power". (2-8)
-    "accordionStrips": 4
+    "accordionStrips": 4,
+
+    // One line of text on each photo, built from what the photo source knows about it. Mix plain text with the tokens
+    // {date} (long form, in the language of clock.locale), {year}, {city}, {state} and {country}, e.g. "{city}, {year}".
+    // A token the photo source does not provide is skipped together with the text in front of it ("2021" when the city
+    // is unknown). "" = no caption. The immich plugins provide date and place; the folder plugin provides none.
+    // Style or hide it in custom.css (.frame-caption).
+    "caption": ""
   },
 
   // ---------------------------------------------------------------------------
@@ -137,7 +144,7 @@
   "plugins": [
     {
       "id": "immich-sharedAlbum", // Photos from an Immich shared album (read through its shared link)
-      "enabled": true,
+      "enabled": false,
       "settings": {
         // Address of the Immich server, no trailing slash and no /api.
         "url": "https://immich.example.com",
@@ -157,8 +164,50 @@
       }
     },
     {
-      "id": "folder",           // Photos from a folder on this computer (files can be added in any way)
+      "id": "immich-library",   // Photos from an Immich library, read with an API key: albums, "on this day" memories, or a search
       "enabled": false,
+      // The hosts this plugin may send POST requests to (the user's list; the plugin cannot add to it). Only "search" mode needs one:
+      // Immich offers its smart search only as a POST, which still changes nothing. Host name only: no https://, port or path.
+      "allowedPostHosts": ["immich.example.com"],
+      "settings": {
+        // Address of the Immich server, no trailing slash and no /api.
+        "url": "https://immich.example.com",
+
+        // An API key from Immich (Account Settings > API Keys). Give it READ-ONLY permissions: asset.read, album.read,
+        // memory.read, timeline.read (and person.read if you use personIds). It can read your whole library: keep this file private.
+        "apiKey": "your-api-key",
+
+        // "album"  = the albums named below
+        // "memory" = "on this day" photos from earlier years (see daysBefore)
+        // "search" = Immich's smart search by meaning (see query); needs allowedPostHosts above
+        "mode": "search",
+
+        // Most photos to use (0-100000). 0 = all, except in search mode, where 0 means 200.
+        "maxImages": 300,
+
+        // Same as the other plugins: "by" is "random" or an EXIF field, "sort" is "desc" or "asc". Ignored in search mode,
+        // where photos stay in Immich's ranking (best match first).
+        "order": { "by": "random", "sort": "desc" },
+
+        // album mode: album names (spelled exactly) or ids (the last part of an album's address); ids win if both are given.
+        // "albumNames": ["Holiday 2025"],
+        // "albumIds": ["album-uuid"],
+
+        // memory mode: how many days back from today to include (0-15). The 2 days AFTER today are always included
+        // (Immich keeps its memories only about two days ahead).
+        // "daysBefore": 7,
+
+        // search mode: what to look for, in words, and optional limits.
+        "query": "dogs"
+        // "personIds": ["person-uuid"],
+        // "isFavorite": true,
+        // "city": "Paris",
+        // "country": "France"
+      }
+    },
+    {
+      "id": "folder",           // Photos from a folder on this computer (files can be added in any way)
+      "enabled": true,
       "settings": {
         // Folder of photos (.jpg, .jpeg, .png, .webp), relative to the plugin's own folder: "photos" means
         // builtin-plugins/folder/photos. Copy photos in; absolute paths and symbolic links are not allowed, because the

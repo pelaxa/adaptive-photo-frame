@@ -1,0 +1,11 @@
+{
+  "name": "immich-library-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Adaptive Photo Frame plugin: photos from an Immich library (albums, memories or a smart search), read with an API key",
+  "type": "module",
+  "dependencies": {
+    "@immich/sdk": "^3.3.6"
+  },
+  "license": "AGPL-3.0-or-later"
+}

@@ -118,6 +118,19 @@ export function photoLimits(imageCount, configuredMin, configuredMax, spare = 2)
 }
 
 /**
+ * Decides, by chance and not by fit, whether a replacement column is a stacked pair or a single photo. Choosing by fit alone
+ * always favours the kind that just left (a pair is half as wide as a single), so the wall drifts to singles and never recovers.
+ * @param {number} maxInColumn - Most photos the column may hold (below 2 forbids a pair).
+ * @param {number} minInColumn - Photos the column should hold (2 or more forces a pair).
+ * @param {number} chance - Chance of a pair, 0-1 (display.stackChance).
+ * @param {number} roll - A random number in [0, 1).
+ * @returns {boolean} True for a stacked pair.
+ */
+export function wantsPair(maxInColumn, minInColumn, chance, roll) {
+  return maxInColumn >= 2 && (minInColumn >= 2 || roll < chance);
+}
+
+/**
  * Splits the length of an accordion fold into strips of WHOLE pixels. Strips of fractional size meet between two pixels, and the
  * anti-aliased edges of two separately drawn 3D strips then leave a thin line of the background showing through. So the boundaries
  * are rounded, and every strip except the last is drawn STRIP_OVERLAP pixel longer, reaching under its neighbour.

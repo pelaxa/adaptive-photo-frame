@@ -20,7 +20,7 @@ stated explicitly and must not be relaxed without asking.
 - **Do not commit or push** unless asked. The owner commits.
   When asked to commit, end the message with a `Co-Authored-By:` trailer naming the assistant. The README has an **AI Use** section; keep it
   accurate if the way the project is built changes.
-- **Stay inside the project folder** (the session scratchpad excepted) and **never change anything on the owner's Immich server** *(owner rule)*: only read (GET)
+- **Stay inside the project folder** (the session scratchpad excepted) and **never change anything on the owner's Immich server** *(owner rule)*: only read (GET; the one approved exception is the `immich-library` search POST, see section 3)
   requests, no create/update/delete. The live Immich is real data.
 - **Do not kill processes you did not start.** The owner often has their own server running (usually on port 3000). Test on other
   ports (for example 7395, 7396...) and stop only what you started, by PID. Never `pkill -f server.js`: it also matches VS Code's language
@@ -68,7 +68,7 @@ lib/sandbox.js         runs a plugin in a restricted Node process; lib/sandboxCh
 lib/guardedFetch.js    GET-only fetch handed to plugins (advice, not enforcement)
 lib/images.js          THE image service: download URL or take bytes, sniff format, resize with sharp, cache on disk
 lib/logger.js          levelled logger; plugin lines are prefixed with the plugin's name
-builtin-plugins/<id>/  the plugins shipped with the app: index.js + package.json + node_modules (folder/, immich-sharedAlbum/)
+builtin-plugins/<id>/  the plugins shipped with the app: index.js + package.json + node_modules (folder/, immich-sharedAlbum/, immich-library/)
 plugins/<id>/          plugins added by the user (empty in the repo; mapped to the host in Docker); same layout
 public/                the page: app.js (rows, animations), layout.js and sequence.js (pure, tested), style.css, index.html
 scripts/               pluginTool.js (npm run check / setup), installPlugins.js
@@ -89,14 +89,19 @@ test/                  unit tests
   it fails to start the server retries (never falls through to the next entry).
 - The plugin's `name` (chosen by the plugin author) prefixes every log line from it.
 - **Contract `apiVersion: 1`** (adapters per version live in `lib/plugins.js`; additive optional changes do not bump the version):
-  `name`, `settings` (typed specs), `allowedPostHosts?`, `init(settings, ctx)?` (throw if not ready; it is retried), `setup(ctx)?`
-  (run by `npm run setup`), `getImages()` -> `{ title, images: [{ id, ratio }], order? }`, `getImage(id, {maxPixels})` ->
+  `name`, `settings` (typed specs; types include `list`), `init(settings, ctx)?` (throw if not ready; it is retried), `setup(ctx)?`
+  (run by `npm run setup`), `getImages()` -> `{ title, images: [{ id, ratio, date?, city?, state?, country? }], order? }`, `getImage(id, {maxPixels})` ->
   `{ body }` **or** `{ url, headers? }`, `getUploadUrl()?` (async allowed, read once after init). `ctx` = `{ fetch, log, pluginDir, prompt }`.
   Ids are opaque unique text; `ratio` = displayed width / height (after EXIF rotation).
 - **No upload feature in this app** *(owner rule)*: no upload route, no upload method in the contract. Only plugins that have a
   service with its own upload page return a URL from `getUploadUrl()`; that becomes the QR code. The folder plugin has none.
-- Plugins read their photo service **read-only**. Built-in plugins use GET only. Documented API only: the Immich plugin uses the
-  documented `?key=` query parameter (the `x-immich-share-key` header works but is undocumented, so it is not used).
+- Plugins read their photo service **read-only**. Built-in plugins use GET only, **with one owner-approved exception (2026-11-10)**: `immich-library` in `search` mode sends `POST /search/smart` (Immich offers
+  smart search only as a POST; it changes nothing). That POST goes to that one path through one helper, and works only if the user listed the Immich host in `allowedPostHosts`. Documented API only: `immich-sharedAlbum` uses the
+  documented `?key=` query parameter (the `x-immich-share-key` header works but is undocumented, so it is not used); `immich-library` sends its API key in the documented `x-api-key` header, never in a URL.
+- **`allowedPostHosts` is the user's setting** *(owner rule)*: it is a list of host names on a plugin entry in `config/config.jsonc` (default none) and is handed to the plugin's `ctx.fetch` guard at `init`/`setup`. A plugin cannot declare its own (it is ignored with a warning).
+- **`immich-library`** modes: `album`, `memory` (`daysBefore` 0-15, default 7, plus a fixed 2 days ahead, via `GET /memories?for=YYYY-MM-DD`: Immich keeps memories only about 2 days ahead) and `search`. It asks Immich **once per local day** (owner rule: no polling every minute).
+- **Captions** *(owner decision)*: `display.caption` is an app option (template of `{date}`, `{year}`, `{city}`, `{state}`, `{country}`); plugins only supply the optional facts per image; a token a plugin does not provide is skipped with the text in front of it
+  (`public/caption.js`). The element is `.frame-caption`.
 
 ### Images
 - Plugins say *where* an image is; **the app** (`lib/images.js`) checks, resizes and caches it with `sharp`, so plugins need no image

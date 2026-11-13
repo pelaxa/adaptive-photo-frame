@@ -72,3 +72,10 @@ test('an object setting is checked field by field, and its defaults fill in what
   readSettings(group, { order: { byy: 'typo' } }, 'p', log);
   assert.match(warnings[0], /p\.order\.byy is not a known setting/);
 });
+
+test('a list setting takes a list of non-empty text values and trims them', () => {
+  const specs = [{ key: 'names', type: 'list', default: [], description: 'x' }];
+  assert.deepEqual(readSettings(specs, undefined, 'p', { warn() {} }), { names: [] });
+  assert.deepEqual(readSettings(specs, { names: [' a ', 'b'] }, 'p', { warn() {} }), { names: ['a', 'b'] });
+  for (const bad of ['a', [1], [''], [' ']]) assert.throws(() => readSettings(specs, { names: bad }, 'p', { warn() {} }), /p\.names must be a list/);
+});
